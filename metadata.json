@@ -1,0 +1,5 @@
+{
+  "name": "Aura - Your Personal AI Memory Vault",
+  "description": "A secure, private, and intelligent personal website to store, manage, and recall all your notes (text, media, files, sensitive credentials) with the help of Gemini AI. Features zero-knowledge encryption for a private vault, smart semantic search, and a clean, responsive UI.",
+  "requestFramePermissions": []
+}
