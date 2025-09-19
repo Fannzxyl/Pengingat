@@ -38,7 +38,7 @@ export const VaultUnlockModal: React.FC<VaultUnlockModalProps> = ({ isOpen, onCl
                         type="password"
                         value={passphrase}
                         onChange={(e) => setPassphrase(e.target.value)}
-                        placeholder="••••••••••••"
+                        placeholder="Masukkan passphrase master"
                         autoFocus
                     />
                 </div>

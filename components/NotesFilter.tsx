@@ -47,7 +47,7 @@ export const NotesFilter: React.FC<NotesFilterProps> = ({ onFilterChange, unique
     };
 
     return (
-        <div className="flex flex-col md:flex-row gap-4 mb-6 p-4 bg-white dark:bg-gray-800/50 rounded-lg shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 mb-6 p-5 rounded-3xl border border-white/40 bg-white/70 shadow-lg shadow-indigo-500/10 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/60">
             <div className="flex-1">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Filter by type:</label>
                 <div className="flex flex-wrap gap-2">
@@ -85,11 +85,11 @@ export const NotesFilter: React.FC<NotesFilterProps> = ({ onFilterChange, unique
                         autoComplete="off"
                     />
                     {showSuggestions && tagSuggestions.length > 0 && (
-                        <ul className="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
+                        <ul className="absolute z-20 w-full bg-white/85 dark:bg-slate-900/85 border border-white/40 dark:border-slate-800/60 rounded-2xl mt-2 max-h-48 overflow-y-auto shadow-xl backdrop-blur-xl">
                             {tagSuggestions.map(tag => (
                                 <li
                                     key={tag}
-                                    className="px-3 py-2 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                                    className="px-3 py-2 rounded-xl cursor-pointer hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors"
                                     onMouseDown={() => handleSuggestionClick(tag)}
                                 >
                                     {tag}

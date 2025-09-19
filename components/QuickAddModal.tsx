@@ -3,7 +3,8 @@ import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
 import { FileUpload } from './ui/FileUpload';
-import { NoteType } from '../types';
+import { Note, NoteType } from '../types';
+import { loadNotesFromStorage, saveNotesToStorage } from '../services/noteStorage';
 
 interface QuickAddModalProps {
     isOpen: boolean;
@@ -12,30 +13,105 @@ interface QuickAddModalProps {
 
 const noteTypes: NoteType[] = ['text', 'code', 'image', 'audio', 'video', 'file'];
 
+function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                resolve(reader.result);
+            } else {
+                reject(new Error('File reader menghasilkan data yang tidak valid.'));
+            }
+        };
+        reader.onerror = () => reject(reader.error ?? new Error('Gagal membaca file.'));
+        reader.readAsDataURL(file);
+    });
+}
+
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose }) => {
     const [selectedType, setSelectedType] = useState<NoteType>('text');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [file, setFile] = useState<File | null>(null);
     const [tags, setTags] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const isFileType = ['image', 'audio', 'video', 'file'].includes(selectedType);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // In a real app, you would handle the form submission,
-        // potentially uploading the file and creating a new note.
-        alert(`Adding new ${selectedType} note titled "${title}"`);
-        handleClose();
+        if (isSaving) {
+            return;
+        }
+
+        setError(null);
+        setIsSaving(true);
+
+        try {
+            let fileUrl: string | undefined;
+            let mime: string | undefined;
+            let size: number | undefined;
+
+            if (isFileType) {
+                if (!file) {
+                    setError('Silakan pilih file untuk disimpan.');
+                    setIsSaving(false);
+                    return;
+                }
+                fileUrl = await fileToDataUrl(file);
+                mime = file.type || undefined;
+                size = file.size;
+            } else if (!content.trim()) {
+                setError('Isi catatan belum diisi.');
+                setIsSaving(false);
+                return;
+            }
+
+            const now = new Date();
+            const normalizedTags = tags
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(Boolean);
+
+            const newNote: Note = {
+                id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                userId: 'u1',
+                title: title.trim(),
+                type: selectedType,
+                tags: normalizedTags,
+                createdAt: now,
+                updatedAt: now,
+            };
+
+            if (selectedType === 'text' || selectedType === 'code') {
+                newNote.content_text = content.trim();
+            } else if (fileUrl) {
+                newNote.file_url = fileUrl;
+                newNote.mime = mime;
+                newNote.size = size;
+            }
+
+            const existingNotes = loadNotesFromStorage();
+            saveNotesToStorage([newNote, ...existingNotes]);
+
+            handleClose();
+        } catch (err) {
+            console.error('Failed to add note via Quick Add:', err);
+            setError('Gagal menambahkan catatan. Silakan coba lagi.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleClose = () => {
-        // Reset state
         setSelectedType('text');
         setTitle('');
         setContent('');
         setFile(null);
         setTags('');
+        setError(null);
+        setIsSaving(false);
         onClose();
     };
 
@@ -63,13 +139,21 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
 
                 <div>
                     <label htmlFor="quickadd-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
-                    <Input id="quickadd-title" type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter a title for your note" required autoFocus />
+                    <Input
+                        id="quickadd-title"
+                        type="text"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        placeholder="Enter a title for your note"
+                        required
+                        autoFocus
+                    />
                 </div>
 
                 {isFileType ? (
                     <div>
-                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
-                        <FileUpload onFileUpload={setFile} />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
+                        <FileUpload onFileUpload={uploaded => setFile(uploaded)} />
                     </div>
                 ) : (
                     <div>
@@ -87,15 +171,27 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({ isOpen, onClose })
                         />
                     </div>
                 )}
-                
-                 <div>
+
+                <div>
                     <label htmlFor="quickadd-tags" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma-separated)</label>
-                    <Input id="quickadd-tags" type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g., work, important, idea" />
+                    <Input
+                        id="quickadd-tags"
+                        type="text"
+                        value={tags}
+                        onChange={e => setTags(e.target.value)}
+                        placeholder="e.g., work, important, idea"
+                    />
                 </div>
 
+                {error && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                )}
+
                 <div className="flex justify-end space-x-2 pt-2">
-                    <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
-                    <Button type="submit">Add Note</Button>
+                    <Button type="button" variant="secondary" onClick={handleClose} disabled={isSaving}>Cancel</Button>
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? 'Saving...' : 'Add Note'}
+                    </Button>
                 </div>
             </form>
         </Modal>

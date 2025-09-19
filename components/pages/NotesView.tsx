@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Note, NoteType, Collection } from '../../types';
 import { NoteCard } from '../NoteCard';
 import { NoteDetailModal } from '../NoteDetailModal';
@@ -7,56 +7,162 @@ import { NotesFilter } from '../NotesFilter';
 import { CreateCollectionModal } from '../CreateCollectionModal';
 import { Button } from '../ui/Button';
 import { ICONS } from '../../constants';
+import {
+    loadNotesFromStorage,
+    saveNotesToStorage,
+    loadCollectionsFromStorage,
+    saveCollectionsToStorage,
+    getDefaultNotes,
+    getDefaultCollections,
+    NOTES_UPDATED_EVENT,
+    COLLECTIONS_UPDATED_EVENT,
+} from '../../services/noteStorage';
 
-// MOCK DATA for Notes
-const MOCK_NOTES: Note[] = [
-    { id: '1', userId: 'u1', type: 'text', title: 'Grocery List', content_text: 'Milk, Bread, Cheese, Apples', tags: ['shopping', 'home'], createdAt: new Date('2024-05-20'), updatedAt: new Date(), collectionId: 'c1' },
-    { id: '2', userId: 'u1', type: 'image', title: 'Sunset Photo', file_url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2532&auto=format&fit=crop', tags: ['photography', 'nature'], createdAt: new Date('2024-05-19'), updatedAt: new Date() },
-    { id: '3', userId: 'u1', type: 'code', title: 'useState Snippet', content_text: "const [value, setValue] = useState('');", tags: ['react', 'javascript', 'code'], createdAt: new Date('2024-05-18'), updatedAt: new Date(), collectionId: 'c2' },
-    { id: '4', userId: 'u1', type: 'audio', title: 'Meeting Recording', file_url: '/mock-audio.mp3', tags: ['work', 'meeting'], createdAt: new Date('2024-05-17'), updatedAt: new Date(), collectionId: 'c1' },
-    { id: '5', userId: 'u1', type: 'video', title: 'Vacation Clip', file_url: '/mock-video.mp4', tags: ['travel', 'vacation'], createdAt: new Date('2024-05-16'), updatedAt: new Date() },
-    { id: '6', userId: 'u1', type: 'file', title: 'Project Proposal', file_url: '/mock-document.pdf', mime: 'application/pdf', size: 120400, tags: ['work', 'project'], createdAt: new Date('2024-05-15'), updatedAt: new Date(), collectionId: 'c1' },
-    { id: '7', userId: 'u1', type: 'text', title: 'Book Recommendations', content_text: '1. The Silent Patient\n2. Atomic Habits\n3. Project Hail Mary', tags: ['reading', 'books'], createdAt: new Date('2024-05-14'), updatedAt: new Date(), collectionId: 'c2' },
-    { id: '8', userId: 'u1', type: 'image', title: 'Architecture Idea', file_url: 'https://images.unsplash.com/photo-1487958449943-2429e8be8625?q=80&w=2070&auto=format&fit=crop', tags: ['design', 'architecture'], createdAt: new Date('2024-05-12'), updatedAt: new Date() },
-];
+interface NotesViewProps {
+    searchQuery: string;
+}
 
-const MOCK_COLLECTIONS: Collection[] = [
-    { id: 'c1', userId: 'u1', name: 'Work Projects', createdAt: new Date() },
-    { id: 'c2', userId: 'u1', name: 'Personal', createdAt: new Date() },
-];
+function areNotesEqual(current: Note[], incoming: Note[]): boolean {
+    if (current.length !== incoming.length) {
+        return false;
+    }
 
+    return current.every((note, index) => {
+        const next = incoming[index];
+        if (!next) {
+            return false;
+        }
 
-export const NotesView: React.FC = () => {
-    const [notes, setNotes] = useState<Note[]>(MOCK_NOTES);
-    const [collections, setCollections] = useState<Collection[]>(MOCK_COLLECTIONS);
+        const noteTags = note.tags ?? [];
+        const nextTags = next.tags ?? [];
+        const tagsMatch = noteTags.length === nextTags.length && noteTags.every((tag, tagIndex) => tag === nextTags[tagIndex]);
+
+        return (
+            note.id === next.id &&
+            note.title === next.title &&
+            note.type === next.type &&
+            (note.collectionId ?? '') === (next.collectionId ?? '') &&
+            note.updatedAt.getTime() === next.updatedAt.getTime() &&
+            tagsMatch
+        );
+    });
+}
+
+function areCollectionsEqual(current: Collection[], incoming: Collection[]): boolean {
+    if (current.length !== incoming.length) {
+        return false;
+    }
+
+    return current.every((collection, index) => {
+        const next = incoming[index];
+        if (!next) {
+            return false;
+        }
+
+        return (
+            collection.id === next.id &&
+            collection.name === next.name &&
+            collection.userId === next.userId &&
+            collection.createdAt.getTime() === next.createdAt.getTime()
+        );
+    });
+}
+
+export const NotesView: React.FC<NotesViewProps> = ({ searchQuery }) => {
+    const [notes, setNotes] = useState<Note[]>(() => {
+        const stored = loadNotesFromStorage();
+        return stored.length > 0 ? stored : getDefaultNotes();
+    });
+    const [collections, setCollections] = useState<Collection[]>(() => {
+        const stored = loadCollectionsFromStorage();
+        return stored.length > 0 ? stored : getDefaultCollections();
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
     const [isCreateCollectionOpen, setCreateCollectionOpen] = useState(false);
-    
-    const [filters, setFilters] = useState<{ type: NoteType | 'all', tag: string }>({ type: 'all', tag: '' });
+
+    useEffect(() => {
+        saveNotesToStorage(notes);
+    }, [notes]);
+
+    useEffect(() => {
+        saveCollectionsToStorage(collections);
+    }, [collections]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const syncNotes = () => {
+            const latest = loadNotesFromStorage();
+            setNotes(prev => (areNotesEqual(prev, latest) ? prev : latest));
+        };
+        window.addEventListener(NOTES_UPDATED_EVENT, syncNotes);
+        return () => {
+            window.removeEventListener(NOTES_UPDATED_EVENT, syncNotes);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const syncCollections = () => {
+            const latest = loadCollectionsFromStorage();
+            setCollections(prev => (areCollectionsEqual(prev, latest) ? prev : latest));
+        };
+        window.addEventListener(COLLECTIONS_UPDATED_EVENT, syncCollections);
+        return () => {
+            window.removeEventListener(COLLECTIONS_UPDATED_EVENT, syncCollections);
+        };
+    }, []);
+
+    const [filters, setFilters] = useState<{ type: NoteType | 'all'; tag: string }>({ type: 'all', tag: '' });
 
     const uniqueTags = useMemo(() => {
-        const allTags = notes.flatMap(note => note.tags);
+        const allTags = notes.flatMap(note => note.tags ?? []);
         return [...new Set(allTags)];
     }, [notes]);
+
+    const normalizedSearch = searchQuery.trim().toLowerCase();
 
     const filteredNotes = useMemo(() => {
         return notes.filter(note => {
             const typeMatch = filters.type === 'all' || note.type === filters.type;
-            const tagMatch = filters.tag === '' || note.tags.includes(filters.tag);
-            return typeMatch && tagMatch;
+            const noteTags = note.tags ?? [];
+            const tagMatch = filters.tag === '' || noteTags.includes(filters.tag);
+
+            if (!typeMatch || !tagMatch) {
+                return false;
+            }
+
+            if (normalizedSearch === '') {
+                return true;
+            }
+
+            const haystack = [
+                note.title,
+                note.content_text ?? '',
+                noteTags.join(' '),
+                note.type,
+            ]
+                .join(' ')
+                .toLowerCase();
+
+            return haystack.includes(normalizedSearch);
         });
-    }, [notes, filters]);
+    }, [notes, filters, normalizedSearch]);
 
     const handleSelectNote = (note: Note) => {
         setSelectedNote(note);
     };
-    
+
     const handleUpdateNote = (updatedNote: Note) => {
-        setNotes(prevNotes => prevNotes.map(n => n.id === updatedNote.id ? updatedNote : n));
-        // In a real app, also make an API call to save the change
+        setNotes(prevNotes => prevNotes.map(n => (n.id === updatedNote.id ? { ...updatedNote, updatedAt: new Date() } : n)));
     };
-    
+
     const handleCreateCollection = (name: string) => {
         const newCollection: Collection = {
             id: `c${Date.now()}`,
@@ -76,17 +182,19 @@ export const NotesView: React.FC = () => {
                         All your thoughts and ideas, organized in one place.
                     </p>
                 </div>
-                 <Button onClick={() => setCreateCollectionOpen(true)}>
+                <Button onClick={() => setCreateCollectionOpen(true)}>
                     <span className="mr-2">{ICONS.add}</span>
                     New Collection
                 </Button>
             </div>
 
             <NotesFilter onFilterChange={setFilters} uniqueTags={uniqueTags} />
-            
+
             {isLoading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {Array.from({ length: 8 }).map((_, index) => <NoteCardSkeleton key={index} />)}
+                    {Array.from({ length: 8 }).map((_, index) => (
+                        <NoteCardSkeleton key={index} />
+                    ))}
                 </div>
             ) : filteredNotes.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -95,21 +203,21 @@ export const NotesView: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16 bg-white dark:bg-gray-800/50 rounded-lg">
+                <div className="text-center py-16 rounded-3xl border border-white/40 bg-white/70 shadow-lg shadow-indigo-500/10 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-900/60">
                     <h3 className="text-lg font-medium">No Notes Found</h3>
                     <p className="mt-1 text-sm text-gray-500">Try adjusting your filters or adding a new note.</p>
                 </div>
             )}
-            
-            <NoteDetailModal 
+
+            <NoteDetailModal
                 isOpen={!!selectedNote}
                 onClose={() => setSelectedNote(null)}
                 note={selectedNote}
                 collections={collections}
                 onUpdateNote={handleUpdateNote}
             />
-            
-            <CreateCollectionModal 
+
+            <CreateCollectionModal
                 isOpen={isCreateCollectionOpen}
                 onClose={() => setCreateCollectionOpen(false)}
                 onCreate={handleCreateCollection}
@@ -117,3 +225,4 @@ export const NotesView: React.FC = () => {
         </div>
     );
 };
+

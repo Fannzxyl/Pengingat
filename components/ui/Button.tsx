@@ -1,5 +1,4 @@
-
-import React from 'react';
+﻿import React from 'react';
 import { classNames } from '../../utils/helpers';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,12 +14,12 @@ export const Button: React.FC<ButtonProps> = ({
     className,
     ...props
 }) => {
-    const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed backdrop-blur';
 
     const variantClasses = {
-        primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 focus:ring-gray-500',
-        danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+        primary: 'bg-gradient-to-r from-indigo-500 via-indigo-400 to-sky-500 text-white shadow-lg shadow-indigo-500/30 hover:from-indigo-500 hover:to-sky-600 focus:ring-indigo-300/70',
+        secondary: 'bg-white/60 text-slate-700 border border-white/50 shadow-sm hover:bg-white/80 focus:ring-indigo-200/70 dark:bg-slate-900/50 dark:text-slate-100 dark:border-slate-800/60 dark:hover:bg-slate-900/70',
+        danger: 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg shadow-rose-500/30 hover:from-rose-500 hover:to-orange-600 focus:ring-rose-300/60',
     };
 
     const sizeClasses = {

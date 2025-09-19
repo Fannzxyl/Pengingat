@@ -1,7 +1,7 @@
 
 // This file handles all client-side encryption logic for the Zero-Knowledge Vault.
 
-const SALT = "aura-secure-memory-vault-salt"; // In a real app, this might be user-specific and stored with their account
+const SALT = "azura-secure-memory-vault-salt"; // In a real app, this might be user-specific and stored with their account
 const ITERATIONS = 100000; // PBKDF2 iterations, higher is more secure but slower
 const KEY_LENGTH = 256; // AES-256 key length
 const ENCRYPTION_ALGORITHM = 'AES-GCM';
@@ -45,9 +45,9 @@ function b642ab(b64: string): ArrayBuffer {
  * @param passphrase - The user's master passphrase for the vault.
  * @returns A promise that resolves to a CryptoKey.
  */
-export async function deriveKeyFromPassphrase(passphrase: string): Promise<CryptoKey> {
+export async function deriveKeyFromPassphrase(passphrase: string, options?: { salt?: string }): Promise<CryptoKey> {
   const passwordBuffer = str2ab(passphrase);
-  const saltBuffer = str2ab(SALT);
+  const saltBuffer = str2ab(options?.salt ?? SALT);
 
   const masterKey = await window.crypto.subtle.importKey(
     'raw',

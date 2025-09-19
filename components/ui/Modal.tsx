@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ICONS } from '../../constants';
 
@@ -35,8 +35,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
     }
 
     return createPortal(
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm"
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xl px-4"
             aria-labelledby="modal-title"
             role="dialog"
             aria-modal="true"
@@ -44,16 +44,16 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
         >
             <div
                 ref={modalRef}
-                className="relative w-full max-w-lg p-6 mx-4 bg-white rounded-lg shadow-xl dark:bg-gray-900"
-                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-xl rounded-3xl border border-white/40 bg-white/70 p-6 shadow-2xl shadow-indigo-500/20 backdrop-blur-2xl dark:border-slate-800/60 dark:bg-slate-900/70"
+                onClick={(event) => event.stopPropagation()}
             >
-                <div className="flex items-start justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <h2 id="modal-title" className="text-xl font-semibold text-gray-900 dark:text-white">
+                <div className="flex items-start justify-between pb-4 border-b border-white/50 dark:border-slate-800/60">
+                    <h2 id="modal-title" className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                         {title}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="p-1 text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="p-2 text-slate-500 rounded-xl bg-white/60 transition hover:bg-white/70 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300/70 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800/80"
                         aria-label="Close modal"
                     >
                         {ICONS.close}
